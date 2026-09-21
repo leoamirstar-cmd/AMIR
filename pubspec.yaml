@@ -1,0 +1,19 @@
+name: takhteh_nard
+description: "A luxury Persian Backgammon game built with Flutter."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^6.0.0
+  flutter_animate: ^4.5.0
+  vibration: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
