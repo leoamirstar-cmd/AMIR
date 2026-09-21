@@ -9,9 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  audioplayers: ^6.0.0
-  flutter_animate: ^4.5.0
-  vibration: ^2.0.0
 
 flutter:
   uses-material-design: true
