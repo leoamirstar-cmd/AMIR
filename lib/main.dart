@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
 import 'game_model.dart';
 
 void main() {
@@ -49,22 +48,22 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
             Expanded(
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                   child: AspectRatio(
                     aspectRatio: 1.0,
                     child: Container(
                       decoration: BoxDecoration(
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.8),
-                            blurRadius: 20,
+                            color: Colors.black.withOpacity(0.85),
+                            blurRadius: 22,
                             offset: const Offset(0, 8),
                           ),
                         ],
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                         child: Stack(
                           children: [
                             Positioned.fill(
@@ -75,7 +74,7 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
                             ),
                             Positioned.fill(
                               child: CustomPaint(
-                                painter: CalibratedCheckersPainter(
+                                painter: SymmetricalCheckersPainter(
                                   game: game,
                                   selectedPointIndex: selectedPointIndex,
                                 ),
@@ -112,17 +111,17 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
           Row(
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isWhite ? const Color(0xFFF3E7D3) : const Color(0xFF261910),
+                  color: isWhite ? const Color(0xFFF5EADA) : const Color(0xFF261910),
                   border: Border.all(color: Colors.amber, width: 2),
                 ),
               ),
               const SizedBox(width: 10),
               Text(
-                isWhite ? 'نوبت: مهره سفید (افرا)' : 'نوبت: مهره مشکی (گردو)',
+                isWhite ? 'نوبت: سفید (افرا)' : 'نوبت: مشکی (گردو)',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -222,12 +221,12 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
   }
 }
 
-/// نقاش دقیق کالیبره‌شده روی مثلث‌های عکس board.png
-class CalibratedCheckersPainter extends CustomPainter {
+/// نقاش دقیق بر اساس عکس کراپ‌شده بدون حاشیه خارجی
+class SymmetricalCheckersPainter extends CustomPainter {
   final BackgammonGame game;
   final int? selectedPointIndex;
 
-  CalibratedCheckersPainter({
+  SymmetricalCheckersPainter({
     required this.game,
     this.selectedPointIndex,
   });
@@ -237,25 +236,18 @@ class CalibratedCheckersPainter extends CustomPainter {
     final W = size.width;
     final H = size.height;
 
-    // کالیبراسیون دقیق بر اساس تصویر board.png شما:
-    // سمت چپ: حاشیه بیرونی + شیار جمع‌آوری مهره = حدود ۱۶.۵٪ عرض
-    final leftTrayEnd = W * 0.165;
-    // لولای وسط: بین ۴۷.۵٪ تا ۵۲.۵٪ عرض
-    final leftFieldEnd = W * 0.475;
-    final rightFieldStart = W * 0.525;
-    // سمت راست: شیار جمع‌آوری مهره = از ۸۳.۵٪ تا انتها
-    final rightFieldEnd = W * 0.835;
+    // پارامترهای هندسی دقیق عکس جدید:
+    final leftFieldStart = W * 0.082;
+    final leftFieldEnd = W * 0.465;
+    final rightFieldStart = W * 0.535;
+    final rightFieldEnd = W * 0.918;
 
-    // عرض هر خانه (۶ مثلث در سمت چپ، ۶ مثلث در سمت راست)
-    final leftPointWidth = (leftFieldEnd - leftTrayEnd) / 6.0;
-    final rightPointWidth = (rightFieldEnd - rightFieldStart) / 6.0;
+    final leftStep = (leftFieldEnd - leftFieldStart) / 6.0;
+    final rightStep = (rightFieldEnd - rightFieldStart) / 6.0;
 
-    // اندازه قطر مهره (کمی کوچک‌تر از عرض مثلث تا توی دلش بشینه)
-    final checkerRadius = leftPointWidth * 0.44;
-
-    // موقعیت Y شروع مهره‌ها از بالا و پایین (دقیقاً روی انحنای مثلث‌ها)
-    final topBaseY = H * 0.135;
-    final bottomBaseY = H * 0.865;
+    final checkerRadius = leftStep * 0.45;
+    final topBaseY = H * 0.065;
+    final bottomBaseY = H * 0.935;
     final checkerSpacing = checkerRadius * 1.85;
 
     for (int i = 0; i < 24; i++) {
@@ -266,30 +258,29 @@ class CalibratedCheckersPainter extends CustomPainter {
       double centerX = 0;
 
       if (isTop) {
-        // خانه‌های ۱۲ تا ۲۳ (بالای تخته)
+        // ۱۲ تا ۲۳ بالا:
+        // ۱۲ تا ۱۷ (چپ بالا، از لولا به سمت لبه چپ)
         if (i <= 17) {
-          // ۱۲ تا ۱۷: سمت چپ بالا (از وسط به سمت چپ)
-          final indexInBlock = 17 - i;
-          centerX = leftTrayEnd + (indexInBlock * leftPointWidth) + (leftPointWidth / 2);
+          final col = 17 - i;
+          centerX = leftFieldStart + (col * leftStep) + (leftStep / 2);
         } else {
-          // ۱۸ تا ۲۳: سمت راست بالا (از وسط به سمت راست)
-          final indexInBlock = i - 18;
-          centerX = rightFieldStart + (indexInBlock * rightPointWidth) + (rightPointWidth / 2);
+          // ۱۸ تا ۲۳ (راست بالا، از لولا به سمت لبه راست)
+          final col = i - 18;
+          centerX = rightFieldStart + (col * rightStep) + (rightStep / 2);
         }
       } else {
-        // خانه‌های ۰ تا ۱۱ (پایین تخته)
+        // ۰ تا ۱۱ پایین:
+        // ۰ تا ۵ (راست پایین)
         if (i <= 5) {
-          // ۰ تا ۵: سمت راست پایین
-          final indexInBlock = i;
-          centerX = rightFieldStart + (indexInBlock * rightPointWidth) + (rightPointWidth / 2);
+          final col = i;
+          centerX = rightFieldStart + (col * rightStep) + (rightStep / 2);
         } else {
-          // ۶ تا ۱۱: سمت چپ پایین
-          final indexInBlock = 11 - i;
-          centerX = leftTrayEnd + (indexInBlock * leftPointWidth) + (leftPointWidth / 2);
+          // ۶ تا ۱۱ (چپ پایین)
+          final col = 11 - i;
+          centerX = leftFieldStart + (col * leftStep) + (leftStep / 2);
         }
       }
 
-      // رسم مهره‌ها
       for (int c = 0; c < point.count; c++) {
         final centerY = isTop
             ? topBaseY + (c * checkerSpacing)
@@ -313,7 +304,7 @@ class CalibratedCheckersPainter extends CustomPainter {
     bool isWhite,
     bool isSelected,
   ) {
-    // ۱. سایه نرم چوب
+    // ۱. سایه طبیعی روی چوب
     final shadowPaint = Paint()
       ..color = Colors.black.withOpacity(isSelected ? 0.6 : 0.45)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, isSelected ? 8 : 4);
@@ -324,7 +315,7 @@ class CalibratedCheckersPainter extends CustomPainter {
       shadowPaint,
     );
 
-    // ۲. گرادیانت چوب مهره (افرا یا گردو)
+    // ۲. گرادیانت چوب گردو یا افرا
     final baseGradient = isWhite
         ? const RadialGradient(
             center: Alignment(-0.3, -0.4),
@@ -344,7 +335,7 @@ class CalibratedCheckersPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, basePaint);
 
-    // ۳. شیار سنتی وسط مهره
+    // ۳. شیار خراطی‌شده سنتی وسط مهره
     final ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = radius * 0.14
@@ -354,7 +345,7 @@ class CalibratedCheckersPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius * 0.58, ringPaint);
 
-    // ۴. های‌لایت براق سه‌بعدی
+    // ۴. های‌لایت نور براق لبه مهره
     final highlightPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = radius * 0.08
