@@ -20,7 +20,7 @@ class LuxuryBackgammonApp extends StatelessWidget {
       title: 'تخته نرد پارسی',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF140C07),
+        scaffoldBackgroundColor: const Color(0xFF120904),
       ),
       home: const BackgammonGameScreen(),
     );
@@ -55,29 +55,39 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
                       decoration: BoxDecoration(
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.85),
-                            blurRadius: 22,
-                            offset: const Offset(0, 8),
+                            color: Colors.black.withOpacity(0.9),
+                            blurRadius: 25,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 10),
                           ),
                         ],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         child: Stack(
                           children: [
+                            // ۱. بورد چوبی خام با منبت‌کاری دور و لولا
                             Positioned.fill(
                               child: Image.asset(
                                 'assets/images/board.png',
                                 fit: BoxFit.fill,
                               ),
                             ),
+
+                            // ۲. لایه مثلث‌های خاتم‌کاری دقیق
                             Positioned.fill(
                               child: CustomPaint(
-                                painter: SymmetricalCheckersPainter(
-                                  game: game,
-                                  selectedPointIndex: selectedPointIndex,
-                                ),
+                                painter: KhatamTrianglesPainter(),
+                              ),
+                            ),
+
+                            // ۳. لایه مهره‌های چوبی طبیعی و واقعی
+                            Positioned.fill(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  return _buildCheckersLayer(constraints.biggest);
+                                },
                               ),
                             ),
                           ],
@@ -100,9 +110,9 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E130B),
+        color: const Color(0xFF1A0E06),
         border: Border(
-          bottom: BorderSide(color: Colors.amber.withOpacity(0.2), width: 1),
+          bottom: BorderSide(color: Colors.amber.withOpacity(0.25), width: 1),
         ),
       ),
       child: Row(
@@ -111,11 +121,11 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
           Row(
             children: [
               Container(
-                width: 22,
-                height: 22,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isWhite ? const Color(0xFFF5EADA) : const Color(0xFF261910),
+                  color: isWhite ? const Color(0xFFF3E7D3) : const Color(0xFF261910),
                   border: Border.all(color: Colors.amber, width: 2),
                 ),
               ),
@@ -147,7 +157,7 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
   Widget _buildBottomControls() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: const Color(0xFF1A1009),
+      color: const Color(0xFF160B05),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -219,156 +229,203 @@ class _BackgammonGameScreenState extends State<BackgammonGameScreen> {
       ),
     );
   }
-}
 
-/// نقاش دقیق بر اساس عکس کراپ‌شده بدون حاشیه خارجی
-class SymmetricalCheckersPainter extends CustomPainter {
-  final BackgammonGame game;
-  final int? selectedPointIndex;
-
-  SymmetricalCheckersPainter({
-    required this.game,
-    this.selectedPointIndex,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
+  /// لایه چیدمان مهره‌های طبیعی با عکس واقعی
+  Widget _buildCheckersLayer(Size size) {
     final W = size.width;
     final H = size.height;
 
-    // پارامترهای هندسی دقیق عکس جدید:
-    final leftFieldStart = W * 0.082;
+    // هندسه دقیق کادر داخلی تخته خام (بدون در نظر گرفتن منبت دور و شیارها)
+    final leftFieldStart = W * 0.175;
     final leftFieldEnd = W * 0.465;
     final rightFieldStart = W * 0.535;
-    final rightFieldEnd = W * 0.918;
+    final rightFieldEnd = W * 0.825;
 
     final leftStep = (leftFieldEnd - leftFieldStart) / 6.0;
     final rightStep = (rightFieldEnd - rightFieldStart) / 6.0;
 
-    final checkerRadius = leftStep * 0.45;
-    final topBaseY = H * 0.065;
-    final bottomBaseY = H * 0.935;
-    final checkerSpacing = checkerRadius * 1.85;
+    final checkerSize = leftStep * 0.92;
+    final topBaseY = H * 0.095;
+    final bottomBaseY = H * 0.905 - checkerSize;
+    final checkerOverlap = checkerSize * 0.82;
+
+    List<Widget> checkerWidgets = [];
 
     for (int i = 0; i < 24; i++) {
       final point = game.points[i];
       if (point.count == 0 || point.color == null) continue;
 
       final isTop = i >= 12;
-      double centerX = 0;
+      double posX = 0;
 
       if (isTop) {
-        // ۱۲ تا ۲۳ بالا:
-        // ۱۲ تا ۱۷ (چپ بالا، از لولا به سمت لبه چپ)
         if (i <= 17) {
           final col = 17 - i;
-          centerX = leftFieldStart + (col * leftStep) + (leftStep / 2);
+          posX = leftFieldStart + (col * leftStep) + ((leftStep - checkerSize) / 2);
         } else {
-          // ۱۸ تا ۲۳ (راست بالا، از لولا به سمت لبه راست)
           final col = i - 18;
-          centerX = rightFieldStart + (col * rightStep) + (rightStep / 2);
+          posX = rightFieldStart + (col * rightStep) + ((rightStep - checkerSize) / 2);
         }
       } else {
-        // ۰ تا ۱۱ پایین:
-        // ۰ تا ۵ (راست پایین)
         if (i <= 5) {
           final col = i;
-          centerX = rightFieldStart + (col * rightStep) + (rightStep / 2);
+          posX = rightFieldStart + (col * rightStep) + ((rightStep - checkerSize) / 2);
         } else {
-          // ۶ تا ۱۱ (چپ پایین)
           final col = 11 - i;
-          centerX = leftFieldStart + (col * leftStep) + (leftStep / 2);
+          posX = leftFieldStart + (col * leftStep) + ((leftStep - checkerSize) / 2);
         }
       }
 
       for (int c = 0; c < point.count; c++) {
-        final centerY = isTop
-            ? topBaseY + (c * checkerSpacing)
-            : bottomBaseY - (c * checkerSpacing);
+        final posY = isTop
+            ? topBaseY + (c * checkerOverlap)
+            : bottomBaseY - (c * checkerOverlap);
 
-        _drawLuxuryChecker(
-          canvas,
-          Offset(centerX, centerY),
-          checkerRadius,
-          point.color == PlayerColor.white,
-          selectedPointIndex == i && c == point.count - 1,
+        final isWhite = point.color == PlayerColor.white;
+
+        checkerWidgets.add(
+          Positioned(
+            left: posX,
+            top: posY,
+            width: checkerSize,
+            height: checkerSize,
+            child: _buildRealisticCheckerWidget(isWhite),
+          ),
         );
       }
     }
+
+    return Stack(children: checkerWidgets);
   }
 
-  void _drawLuxuryChecker(
-    Canvas canvas,
-    Offset center,
-    double radius,
-    bool isWhite,
-    bool isSelected,
-  ) {
-    // ۱. سایه طبیعی روی چوب
-    final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(isSelected ? 0.6 : 0.45)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, isSelected ? 8 : 4);
-
-    canvas.drawCircle(
-      center.translate(0, isSelected ? 5 : 3),
-      radius,
-      shadowPaint,
-    );
-
-    // ۲. گرادیانت چوب گردو یا افرا
-    final baseGradient = isWhite
-        ? const RadialGradient(
-            center: Alignment(-0.3, -0.4),
-            colors: [Color(0xFFFFF8EE), Color(0xFFE5D5BC), Color(0xFFA68E70)],
-            stops: [0.0, 0.65, 1.0],
-          )
-        : const RadialGradient(
-            center: Alignment(-0.3, -0.4),
-            colors: [Color(0xFF533B2C), Color(0xFF2C1B10), Color(0xFF140B06)],
-            stops: [0.0, 0.6, 1.0],
-          );
-
-    final basePaint = Paint()
-      ..shader = baseGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius),
-      );
-
-    canvas.drawCircle(center, radius, basePaint);
-
-    // ۳. شیار خراطی‌شده سنتی وسط مهره
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.14
-      ..color = isWhite
-          ? const Color(0xFF947B5A).withOpacity(0.55)
-          : Colors.black.withOpacity(0.75);
-
-    canvas.drawCircle(center, radius * 0.58, ringPaint);
-
-    // ۴. های‌لایت نور براق لبه مهره
-    final highlightPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = radius * 0.08
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.white.withOpacity(isWhite ? 0.85 : 0.45),
-          Colors.transparent,
+  Widget _buildRealisticCheckerWidget(bool isWhite) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.45),
+            blurRadius: 4,
+            offset: const Offset(0, 3),
+          ),
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
+      ),
+      child: isWhite
+          // مهره چوب افرای طبیعی (عکس اصلی)
+          ? Image.asset(
+              'assets/images/checker.png',
+              fit: BoxFit.contain,
+            )
+          // مهره چوب گردوی تیره (با فیلتر رنگی گرم چوب کهنسال)
+          : ColorFiltered(
+              colorFilter: const ColorFilter.matrix([
+                0.28, 0, 0, 0, 15,
+                0, 0.18, 0, 0, 8,
+                0, 0, 0.12, 0, 4,
+                0, 0, 0, 1.0, 0,
+              ]),
+              child: Image.asset(
+                'assets/images/checker.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+    );
+  }
+}
 
-    canvas.drawCircle(center, radius * 0.88, highlightPaint);
+/// نقاش مثلث‌های اصیل خاتم‌کاری با نوک باریک و حاشیه‌های طلایی
+class KhatamTrianglesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final W = size.width;
+    final H = size.height;
 
-    if (isSelected) {
-      final selectPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..color = const Color(0xFFFFD700);
-      canvas.drawCircle(center, radius + 2, selectPaint);
+    final leftFieldStart = W * 0.175;
+    final leftFieldEnd = W * 0.465;
+    final rightFieldStart = W * 0.535;
+    final rightFieldEnd = W * 0.825;
+
+    final leftStep = (leftFieldEnd - leftFieldStart) / 6.0;
+    final rightStep = (rightFieldEnd - rightFieldStart) / 6.0;
+
+    final triangleHeight = H * 0.38;
+    final topY = H * 0.085;
+    final bottomY = H * 0.915;
+
+    // ۱۲ مثلث بالا
+    for (int i = 0; i < 6; i++) {
+      // چپ بالا
+      final x1 = leftFieldStart + (i * leftStep);
+      final x2 = x1 + leftStep;
+      _drawKhatamTriangle(canvas, x1, topY, x2, topY, (x1 + x2) / 2, topY + triangleHeight, i % 2 == 0);
+
+      // راست بالا
+      final rx1 = rightFieldStart + (i * rightStep);
+      final rx2 = rx1 + rightStep;
+      _drawKhatamTriangle(canvas, rx1, topY, rx2, topY, (rx1 + rx2) / 2, topY + triangleHeight, i % 2 == 1);
+    }
+
+    // ۱۲ مثلث پایین
+    for (int i = 0; i < 6; i++) {
+      // چپ پایین
+      final x1 = leftFieldStart + (i * leftStep);
+      final x2 = x1 + leftStep;
+      _drawKhatamTriangle(canvas, x1, bottomY, x2, bottomY, (x1 + x2) / 2, bottomY - triangleHeight, i % 2 == 1);
+
+      // راست پایین
+      final rx1 = rightFieldStart + (i * rightStep);
+      final rx2 = rx1 + rightStep;
+      _drawKhatamTriangle(canvas, rx1, bottomY, rx2, bottomY, (rx1 + rx2) / 2, bottomY - triangleHeight, i % 2 == 0);
     }
   }
 
+  void _drawKhatamTriangle(
+    Canvas canvas,
+    double x1, double y1,
+    double x2, double y2,
+    double tipX, double tipY,
+    bool isLight,
+  ) {
+    final path = Path()
+      ..moveTo(x1, y1)
+      ..lineTo(x2, y2)
+      ..lineTo(tipX, tipY)
+      ..close();
+
+    // رنگ و گرادیانت چوب افرا یا گردوی خاتم
+    final gradient = isLight
+        ? LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFFF3E7D3).withOpacity(0.85),
+              const Color(0xFFDCC4A5).withOpacity(0.9),
+            ],
+          )
+        : LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF381F13).withOpacity(0.85),
+              const Color(0xFF221109).withOpacity(0.9),
+            ],
+          );
+
+    final fillPaint = Paint()
+      ..shader = gradient.createShader(path.getBounds())
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, fillPaint);
+
+    // خط حاشیه طلایی-برنجی ظریف دور هر مثلث
+    final strokePaint = Paint()
+      ..color = const Color(0xFFC8A155).withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    canvas.drawPath(path, strokePaint);
+  }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
