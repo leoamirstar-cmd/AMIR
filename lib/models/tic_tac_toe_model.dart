@@ -11,7 +11,7 @@ class InfiniteTicTacToeGame {
   // تخته ۹ تایی (۰ تا ۸)
   final List<Player?> board = List.filled(9, null);
 
-  // صف حرکات برای هر بازیکن (حداکثر ۳ مهره)
+  // صف مهره‌های هر بازیکن (حداکثر ۳ مهره)
   final List<int> xMoves = [];
   final List<int> oMoves = [];
 
@@ -20,17 +20,18 @@ class InfiniteTicTacToeGame {
   List<int>? winningLine;
   bool isGameOver = false;
 
+  /// ریست کامل حافظه برای راند جدید
   void reset() {
     board.fillRange(0, 9, null);
-    xMoves.clear;
-    oMoves.clear;
+    xMoves.clear(); // پاکسازی قطعی آرایه مهره‌های X
+    oMoves.clear(); // پاکسازی قطعی آرایه مهره‌های O
     currentTurn = Player.X;
     winner = null;
     winningLine = null;
     isGameOver = false;
   }
 
-  // چک کردن اینکه آیا یک خانه همان مهره‌ای است که در حرکت بعدی حذف می‌شود
+  /// بررسی اینکه آیا این خانه مهره‌ای است که در حرکت بعدی محو خواهد شد
   bool isFadingPiece(int index) {
     if (currentTurn == Player.X && xMoves.length == 3 && xMoves.first == index) {
       return true;
@@ -41,22 +42,23 @@ class InfiniteTicTacToeGame {
     return false;
   }
 
+  /// ثبت حرکت جدید
   bool makeMove(int index) {
     if (isGameOver || board[index] != null) return false;
 
     final currentQueue = currentTurn == Player.X ? xMoves : oMoves;
 
-    // اگر بازیکن ۳ مهره دارد، قدیمی‌ترین مهره‌اش پاک می‌شود
+    // قانون بی‌نهایت: اگر بازیکن ۳ مهره روی صفحه دارد، قدیمی‌ترین مهره حذف می‌شود
     if (currentQueue.length == 3) {
       int removedIndex = currentQueue.removeAt(0);
       board[removedIndex] = null;
     }
 
-    // اضافه کردن مهره جدید
+    // کاشت مهره جدید
     currentQueue.add(index);
     board[index] = currentTurn;
 
-    // بررسی برد
+    // بررسی شرایط برد
     if (_checkWin(currentTurn)) {
       winner = currentTurn;
       isGameOver = true;
@@ -86,7 +88,7 @@ class InfiniteTicTacToeGame {
     return false;
   }
 
-  // هوش مصنوعی ربات (هنگامی که نوبت O است)
+  /// هوش مصنوعی تاکتیکی ربات
   int getBestBotMove() {
     List<int> available = [];
     for (int i = 0; i < 9; i++) {
@@ -94,27 +96,27 @@ class InfiniteTicTacToeGame {
     }
     if (available.isEmpty) return -1;
 
-    // ۱. اگر ربات می‌تواند در این حرکت برنده شود
+    // ۱. بررسی حرکت پیروزی‌بخش برای ربات
     for (int idx in available) {
       if (_simulateWin(idx, Player.O, oMoves)) return idx;
     }
 
-    // ۲. دفاع در برابر برنده شدن بازیکن X در حرکت بعدی
+    // ۲. دفاع در برابر حرکت پیروزی‌بخش بازیکن X
     for (int idx in available) {
       if (_simulateWin(idx, Player.X, xMoves)) return idx;
     }
 
-    // ۳. مرکز صفحه اولویت دارد
+    // ۳. گرفتن مرکز صفحه در صورت خالی بودن
     if (available.contains(4)) return 4;
 
-    // ۴. گوشه‌ها در اولویت بعدی
+    // ۴. گرفتن گوشه‌ها
     List<int> corners = [0, 2, 6, 8].where((c) => available.contains(c)).toList();
     if (corners.isNotEmpty) {
       corners.shuffle();
       return corners.first;
     }
 
-    // ۵. انتخاب رندوم از خانه‌های باقی‌مانده
+    // ۵. انتخاب تصادفی از خانه‌های باقی‌مانده
     available.shuffle();
     return available.first;
   }
