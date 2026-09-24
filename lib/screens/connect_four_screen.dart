@@ -378,7 +378,7 @@ class _ConnectFourScreenState extends State<ConnectFourScreen>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF161E36), // رنگ بدنه تخته اتصال ۴
+          color: const Color(0xFF161E36),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 2),
           boxShadow: [
@@ -416,47 +416,49 @@ class _ConnectFourScreenState extends State<ConnectFourScreen>
   }
 
   Widget _buildHole(Disc? disc, bool isWinning) {
-    Color holeColor = const Color(0xFF0F111A); // رنگ خالی پس‌زمینه
+    Color holeColor = const Color(0xFF0F111A);
     if (disc == Disc.Red) holeColor = const Color(0xFFFF2A6D);
     if (disc == Disc.Yellow) holeColor = const Color(0xFFFFD600);
 
     return AnimatedBuilder(
       animation: _winPulseController,
       builder: (context, child) {
-        return Container(
-          margin: const EdgeInsets.all(3.5),
+        return AspectRatio(
           aspectRatio: 1.0,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: holeColor,
-            border: Border.all(
-              color: isWinning
-                  ? Colors.greenAccent
-                  : (disc != null ? Colors.white24 : Colors.black45),
-              width: isWinning ? 2.5 : 1,
+          child: Container(
+            margin: const EdgeInsets.all(3.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: holeColor,
+              border: Border.all(
+                color: isWinning
+                    ? Colors.greenAccent
+                    : (disc != null ? Colors.white24 : Colors.black45),
+                width: isWinning ? 2.5 : 1,
+              ),
+              boxShadow: isWinning
+                  ? [
+                      BoxShadow(
+                        color: Colors.greenAccent.withOpacity(0.8),
+                        blurRadius: 12 * _winPulseController.value,
+                        spreadRadius: 2,
+                      )
+                    ]
+                  : (disc != null
+                      ? [
+                          BoxShadow(
+                            color: holeColor.withOpacity(0.4),
+                            blurRadius: 6,
+                          )
+                        ]
+                      : []),
             ),
-            boxShadow: isWinning
-                ? [
-                    BoxShadow(
-                      color: Colors.greenAccent.withOpacity(0.8),
-                      blurRadius: 12 * _winPulseController.value,
-                      spreadRadius: 2,
-                    )
-                  ]
-                : (disc != null
-                    ? [
-                        BoxShadow(
-                          color: holeColor.withOpacity(0.4),
-                          blurRadius: 6,
-                        )
-                      ]
-                    : []),
+            child: isWinning
+                ? const Center(
+                    child: Icon(Icons.star_rounded, color: Colors.greenAccent, size: 18),
+                  )
+                : null,
           ),
-          child: isWinning
-              ? const Center(
-                  child: Icon(Icons.star_rounded, color: Colors.greenAccent, size: 18),
-                )
-              : null,
         );
       },
     );
