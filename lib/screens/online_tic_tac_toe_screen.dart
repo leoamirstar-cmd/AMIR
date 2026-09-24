@@ -4,6 +4,14 @@ import 'package:flutter/services.dart';
 import '../models/tic_tac_toe_model.dart';
 import '../services/online_game_service.dart';
 
+class ChatMessage {
+  final String text;
+  final bool isMe;
+  final DateTime time;
+
+  ChatMessage({required this.text, required this.isMe, required this.time});
+}
+
 class OnlineTicTacToeScreen extends StatefulWidget {
   final String matchId;
   final String myRole; // 'X' or 'O'
@@ -22,6 +30,8 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     with SingleTickerProviderStateMixin {
   final InfiniteTicTacToeGame game = InfiniteTicTacToeGame();
   late AnimationController _pulseController;
+  final TextEditingController _chatInputController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
 
   static const int targetWins = 2;
   int xWins = 0;
@@ -32,8 +42,10 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
   int remainingSeconds = maxTurnSeconds;
   Timer? _turnTimer;
 
-  String? recentChatMessage;
-  Timer? _chatDismissTimer;
+  // لیست تاریخچه چت دوطرفه
+  final List<ChatMessage> _messages = [];
+  String? recentFloatingMessage;
+  Timer? _floatingMessageTimer;
 
   bool get isMyTurn =>
       (widget.myRole == 'X' && game.currentTurn == Player.X) ||
@@ -53,8 +65,10 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
   @override
   void dispose() {
     _turnTimer?.cancel();
-    _chatDismissTimer?.cancel();
+    _floatingMessageTimer?.cancel();
     _pulseController.dispose();
+    _chatInputController.dispose();
+    _chatScrollController.dispose();
     super.dispose();
   }
 
@@ -84,7 +98,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
 
   void _onCellTapped(int index) {
     if (game.isGameOver || game.board[index] != null) return;
-    if (!isMyTurn) return; // در صورت نوبت حریف، لمس غیرفعال است
+    if (!isMyTurn) return;
 
     _executeMove(index);
   }
@@ -126,72 +140,174 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     _startTurnTimer();
   }
 
-  void _showChatBottomSheet() {
-    final List<String> quickMessages = [
-      'سلام! آماده‌ای؟ 👋',
-      'عجب حرکتی زدی! 👏',
-      'فکرشم نمی‌کردم! 🤯',
-      'کمی سریع‌تر لطفاً ⏳',
-      'دست‌خوش! بازی قشنگی بود 🔥',
-      'یک راند دیگه؟ 🔄',
-    ];
+  /// ارسال پیام آزاد متنی
+  void _sendTextMessage(String text) {
+    if (text.trim().isEmpty) return;
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Color(0xFF161926),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: Colors.white12)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Center(
-              child: Text(
-                'ارسال پیام سریع به حریف',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: quickMessages.map((msg) {
-                return ActionChip(
-                  backgroundColor: const Color(0xFF22273D),
-                  label: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _broadcastChatMessage(msg);
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
+    final newMsg = ChatMessage(
+      text: text.trim(),
+      isMe: true,
+      time: DateTime.now(),
     );
+
+    setState(() {
+      _messages.add(newMsg);
+      recentFloatingMessage = 'شما: ${newMsg.text}';
+    });
+
+    _chatInputController.clear();
+    _autoScrollChat();
+
+    _floatingMessageTimer?.cancel();
+    _floatingMessageTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => recentFloatingMessage = null);
+    });
   }
 
-  void _broadcastChatMessage(String message) {
-    setState(() {
-      recentChatMessage = message;
-    });
-
-    _chatDismissTimer?.cancel();
-    _chatDismissTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          recentChatMessage = null;
-        });
+  void _autoScrollChat() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
       }
     });
+  }
+
+  /// باز کردن پنجره چت زنده با کیبورد کامل
+  void _openLiveChatSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+              ),
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.65,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF161926),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                  border: Border(top: BorderSide(color: Colors.white12, width: 1.5)),
+                ),
+                child: Column(
+                  children: [
+                    // نوار بالای صفحه چت
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      decoration: const BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Colors.white10)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.chat_bubble_rounded, color: Color(0xFF00E5FF), size: 20),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'گفتگوی آنلاین با حریف',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white60),
+                            onPressed: () => Navigator.pop(sheetContext),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // لیست تاریخچه پیام‌ها
+                    Expanded(
+                      child: _messages.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'هنوز پیامی ارسال نشده است.\nیک پیام برای حریف خود بنویسید!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white38, fontSize: 13),
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: _chatScrollController,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              itemCount: _messages.length,
+                              itemBuilder: (context, index) {
+                                final msg = _messages[index];
+                                return Align(
+                                  alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: msg.isMe ? const Color(0xFF00E5FF).withOpacity(0.2) : const Color(0xFF22273D),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: msg.isMe ? const Color(0xFF00E5FF).withOpacity(0.5) : Colors.white10,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      msg.text,
+                                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    // نوار تایپ و ارسال پیام آزاد با کیبورد
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10131E),
+                        border: Border(top: BorderSide(color: Colors.white10)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _chatInputController,
+                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'پیام خود را بنویسید...',
+                                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFF1E2235),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                              ),
+                              onSubmitted: (value) {
+                                _sendTextMessage(value);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.send_rounded, color: Color(0xFF00E5FF)),
+                            onPressed: () {
+                              _sendTextMessage(_chatInputController.text);
+                              setSheetState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showMatchWinnerDialog() {
@@ -254,15 +370,15 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'مسابقه آنلاین (نقش شما: ${widget.myRole})',
+          'مسابقه آنلاین (شما: ${widget.myRole})',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.cyanAccent),
-            tooltip: 'چت زنده',
-            onPressed: _showChatBottomSheet,
+            tooltip: 'چت آنلاین',
+            onPressed: _openLiveChatSheet,
           ),
         ],
       ),
@@ -273,14 +389,14 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
             _buildScoreBoard(),
             const SizedBox(height: 12),
             _buildTimerAndTurnSection(),
-            if (recentChatMessage != null) _buildChatOverlay(),
+            if (recentFloatingMessage != null) _buildFloatingChat(),
             const Spacer(),
             _buildBoard(),
             const Spacer(),
             if (game.isGameOver && xWins < targetWins && oWins < targetWins)
               _buildNextRoundButton()
             else
-              _buildHelperText(),
+              _buildChatQuickBar(),
             const SizedBox(height: 16),
           ],
         ),
@@ -288,9 +404,9 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     );
   }
 
-  Widget _buildChatOverlay() {
+  Widget _buildFloatingChat() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF00E5FF).withOpacity(0.2),
@@ -300,11 +416,15 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.chat_rounded, color: Color(0xFF00E5FF), size: 16),
+          const Icon(Icons.chat_bubble_rounded, color: Color(0xFF00E5FF), size: 16),
           const SizedBox(width: 8),
-          Text(
-            recentChatMessage!,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+          Flexible(
+            child: Text(
+              recentFloatingMessage!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -406,7 +526,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
         ),
         const SizedBox(width: 12),
         Text(
-          isMyTurn ? 'نوبت شماست! یک مهره انتخاب کنید' : 'در انتظار حرکت حریف...',
+          isMyTurn ? 'نوبت شماست! مهره را بچینید' : 'در انتظار حرکت حریف...',
           style: TextStyle(
             color: isMyTurn ? const Color(0xFF00E5FF) : Colors.white60,
             fontWeight: FontWeight.bold,
@@ -523,12 +643,31 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     );
   }
 
-  Widget _buildHelperText() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 32),
-      child: Text(
-        'مسابقه آنلاین زنده • با آیکون چت بالا پیام بفرستید',
-        style: TextStyle(color: Colors.white38, fontSize: 11),
+  Widget _buildChatQuickBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: InkWell(
+        onTap: _openLiveChatSheet,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E2235),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.chat_bubble_outline_rounded, color: Colors.cyanAccent, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'نوشتن پیام برای حریف...',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
