@@ -13,13 +13,15 @@ class ChatMessage {
 }
 
 class OnlineTicTacToeScreen extends StatefulWidget {
-  final String matchId;
   final String myRole; // 'X' or 'O'
+  final String myPlayerName;
+  final String opponentName;
 
   const OnlineTicTacToeScreen({
     super.key,
-    required this.matchId,
     required this.myRole,
+    required this.myPlayerName,
+    required this.opponentName,
   });
 
   @override
@@ -42,7 +44,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
   int remainingSeconds = maxTurnSeconds;
   Timer? _turnTimer;
 
-  // لیست تاریخچه چت دوطرفه
   final List<ChatMessage> _messages = [];
   String? recentFloatingMessage;
   Timer? _floatingMessageTimer;
@@ -140,7 +141,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     _startTurnTimer();
   }
 
-  /// ارسال پیام آزاد متنی
   void _sendTextMessage(String text) {
     if (text.trim().isEmpty) return;
 
@@ -152,7 +152,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
 
     setState(() {
       _messages.add(newMsg);
-      recentFloatingMessage = 'شما: ${newMsg.text}';
+      recentFloatingMessage = '${widget.myPlayerName}: ${newMsg.text}';
     });
 
     _chatInputController.clear();
@@ -176,7 +176,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     });
   }
 
-  /// باز کردن پنجره چت زنده با کیبورد کامل
   void _openLiveChatSheet() {
     showModalBottomSheet(
       context: context,
@@ -198,7 +197,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
                 ),
                 child: Column(
                   children: [
-                    // نوار بالای صفحه چت
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       decoration: const BoxDecoration(
@@ -208,9 +206,9 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
                         children: [
                           const Icon(Icons.chat_bubble_rounded, color: Color(0xFF00E5FF), size: 20),
                           const SizedBox(width: 10),
-                          const Text(
-                            'گفتگوی آنلاین با حریف',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          Text(
+                            'گفتگو با ${widget.opponentName}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                           const Spacer(),
                           IconButton(
@@ -220,13 +218,11 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
                         ],
                       ),
                     ),
-
-                    // لیست تاریخچه پیام‌ها
                     Expanded(
                       child: _messages.isEmpty
                           ? const Center(
                               child: Text(
-                                'هنوز پیامی ارسال نشده است.\nیک پیام برای حریف خود بنویسید!',
+                                'هنوز پیامی رد و بدل نشده است.\nیک پیام بفرستید!',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: Colors.white38, fontSize: 13),
                               ),
@@ -258,8 +254,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
                               },
                             ),
                     ),
-
-                    // نوار تایپ و ارسال پیام آزاد با کیبورد
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: const BoxDecoration(
@@ -325,7 +319,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
         ),
         title: Center(
           child: Text(
-            iWon ? 'شما برنده مسابقه شدید! 🏆' : 'حریف مسابقه را برد! 🥈',
+            iWon ? 'شما برنده مسابقه شدید! 🏆' : '${widget.opponentName} برنده شد! 🥈',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
           ),
@@ -370,7 +364,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'مسابقه آنلاین (شما: ${widget.myRole})',
+          'مسابقه آنلاین (نقش شما: ${widget.myRole})',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         centerTitle: true,
@@ -431,12 +425,16 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     );
   }
 
+  /// نوار امتیاز با نام واقعی دو بازیکن و رنگ آن‌ها
   Widget _buildScoreBoard() {
-    final isMyTurnX = widget.myRole == 'X';
+    final bool isMeX = widget.myRole == 'X';
+    final String xName = isMeX ? '${widget.myPlayerName} (شما)' : widget.opponentName;
+    final String oName = !isMeX ? '${widget.myPlayerName} (شما)' : widget.opponentName;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
           color: const Color(0xFF191D2D),
           borderRadius: BorderRadius.circular(20),
@@ -445,41 +443,46 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildPlayerScore(isMyTurnX ? 'شما (X)' : 'حریف (X)', xWins, const Color(0xFF00E5FF), game.currentTurn == Player.X),
-            Container(width: 1, height: 40, color: Colors.white10),
-            _buildPlayerScore(!isMyTurnX ? 'شما (O)' : 'حریف (O)', oWins, const Color(0xFFFF2A6D), game.currentTurn == Player.O),
+            // مشخصات بازیکن X (آبی)
+            _buildPlayerScore(xName, 'X', xWins, const Color(0xFF00E5FF), game.currentTurn == Player.X),
+            Container(width: 1, height: 44, color: Colors.white10),
+            // مشخصات بازیکن O (قرمز)
+            _buildPlayerScore(oName, 'O', oWins, const Color(0xFFFF2A6D), game.currentTurn == Player.O),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPlayerScore(String name, int wins, Color color, bool isActive) {
+  Widget _buildPlayerScore(String name, String role, int wins, Color color, bool isActive) {
     return Column(
       children: [
         Row(
           children: [
             Container(
-              width: 8,
-              height: 8,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isActive ? color : Colors.transparent,
-                border: Border.all(color: color, width: 2),
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: color, width: 1),
+              ),
+              child: Text(
+                role,
+                style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11),
               ),
             ),
             const SizedBox(width: 6),
             Text(
               name,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.white54,
+                color: isActive ? Colors.white : Colors.white60,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                 fontSize: 13,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(targetWins, (index) {
@@ -656,14 +659,14 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.chat_bubble_outline_rounded, color: Colors.cyanAccent, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.chat_bubble_outline_rounded, color: Colors.cyanAccent, size: 18),
+              const SizedBox(width: 8),
               Text(
-                'نوشتن پیام برای حریف...',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                'گفتگو با ${widget.opponentName}...',
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ],
           ),
