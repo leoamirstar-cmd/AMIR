@@ -14,7 +14,6 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
   final OnlineGameService _onlineService = OnlineGameService();
   final TextEditingController _nameController = TextEditingController(text: 'امیر');
 
-  /// باز کردن دیالوگ دریافت نام قبل از سرچ آنلاین
   void _promptPlayerName(BuildContext context) {
     showDialog(
       context: context,
@@ -34,7 +33,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'نامی که می‌خواهید برای حریف نمایش داده شود را وارد کنید:',
+              'نام خود را برای ورود به رقابت آنلاین وارد کنید:',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
@@ -86,22 +85,26 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        String currentStatus = 'در حال اسکن بازیکنان آماده...';
+        String currentStatus = 'در حال اتصال به سرور مسابقات...';
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
-            _onlineService.findOrCreateMatch(
+            // شروع جستجوی زنده واقعی
+            _onlineService.searchRealOpponent(
               name: chosenName,
               onStatusUpdate: (status) {
-                setDialogState(() {
-                  currentStatus = status;
-                });
+                if (mounted) {
+                  setDialogState(() {
+                    currentStatus = status;
+                  });
+                }
               },
-              onMatchReady: (role, oppName) {
+              onMatchFound: (role, oppName, roomId) {
                 Navigator.pop(dialogCtx);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => OnlineTicTacToeScreen(
+                      roomId: roomId,
                       myRole: role,
                       myPlayerName: chosenName.isEmpty ? 'من' : chosenName,
                       opponentName: oppName,
@@ -131,7 +134,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'جستجوی حریف آنلاین',
+                    'در انتظار حریف آنلاین',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
                   ),
                   const SizedBox(height: 8),
@@ -146,7 +149,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
                       _onlineService.cancelMatchmaking();
                       Navigator.pop(dialogCtx);
                     },
-                    child: const Text('انصراف', style: TextStyle(color: Colors.redAccent)),
+                    child: const Text('لغو جستجو', style: TextStyle(color: Colors.redAccent)),
                   ),
                 ],
               ),
@@ -226,7 +229,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
               ),
               const SizedBox(height: 16),
 
-              // گزینه ۱: دونفره آفلاین
+              // ۱. دو نفره آفلاین
               _buildLobbyCard(
                 icon: Icons.people_alt_rounded,
                 title: 'دونفره آفلاین (Pass & Play)',
@@ -244,7 +247,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
 
               const SizedBox(height: 14),
 
-              // گزینه ۲: تک‌نفره با ربات
+              // ۲. تک نفره ربات
               _buildLobbyCard(
                 icon: Icons.smart_toy_rounded,
                 title: 'تک‌نفره با ربات هوشمند',
@@ -262,11 +265,11 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
 
               const SizedBox(height: 14),
 
-              // گزینه ۳: آنلاین زنده
+              // ۳. آنلاین واقعی
               _buildLobbyCard(
                 icon: Icons.wifi_rounded,
                 title: 'بازی آنلاین زنده (Matchmaking)',
-                subtitle: 'جستجوی خودکار حریف، ثبت نام و چت متنی',
+                subtitle: 'جستجوی خودکار حریف، نام‌گذاری و چت متنی',
                 color: const Color(0xFFFFB800),
                 onTap: () => _promptPlayerName(context),
               ),
