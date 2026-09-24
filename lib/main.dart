@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/tic_tac_toe_lobby_screen.dart';
+import 'screens/connect_four_lobby_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +41,6 @@ class MainMenuScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              // هدر لوگوی اپلیکیشن
               Row(
                 children: [
                   Container(
@@ -87,7 +87,7 @@ class MainMenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // کارت فعال بازی ۱: هدایت مستقیم به صفحه لابی مجزا
+              // ۱. بازی دوز بی‌نهایت
               _buildGameCard(
                 title: 'دوز بی‌نهایت',
                 englishTitle: 'Infinite Tic-Tac-Toe',
@@ -107,20 +107,27 @@ class MainMenuScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // کارت قفل‌شده بازی ۲: اتصال ۴
+              // ۲. بازی اتصال چهار (فعال شد)
               _buildGameCard(
                 title: 'اتصال چهار (Connect 4)',
-                englishTitle: 'به زودی در آپدیت بعدی',
+                englishTitle: 'Connect 4 Strategy',
                 description: '۴ مهره هم‌رنگ را در یک خط افقی، عمودی یا مورب بچینید.',
                 accentColor: const Color(0xFFFF2A6D),
                 icon: Icons.blur_linear_rounded,
-                isLocked: true,
-                onTap: () {},
+                isLocked: false,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ConnectFourLobbyScreen(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 14),
 
-              // کارت قفل‌شده بازی ۳: نقطه‌ها و خط‌ها
+              // ۳. بازی نقطه‌خط (برای فاز بعد)
               _buildGameCard(
                 title: 'نقطه‌خط (Dots & Boxes)',
                 englishTitle: 'به زودی در آپدیت بعدی',
@@ -133,7 +140,7 @@ class MainMenuScreen extends StatelessWidget {
 
               const Spacer(),
 
-              // جایگاه قرارگیری بنر استاندارد تپسل در پایین منوی اصلی
+              // جایگاه قرارگیری بنر تپسل
               Container(
                 height: 55,
                 margin: const EdgeInsets.only(bottom: 12),
