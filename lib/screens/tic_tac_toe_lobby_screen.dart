@@ -12,8 +12,76 @@ class TicTacToeLobbyScreen extends StatefulWidget {
 
 class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
   final OnlineGameService _onlineService = OnlineGameService();
+  final TextEditingController _nameController = TextEditingController(text: 'امیر');
 
-  void _startQuickMatchmaking(BuildContext context) {
+  /// باز کردن دیالوگ دریافت نام قبل از سرچ آنلاین
+  void _promptPlayerName(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (nameCtx) => AlertDialog(
+        backgroundColor: const Color(0xFF161926),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: Color(0xFFFFB800), width: 1.5),
+        ),
+        title: const Center(
+          child: Text(
+            'پروفایل بازیکن',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'نامی که می‌خواهید برای حریف نمایش داده شود را وارد کنید:',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E2235),
+                hintText: 'نام شما...',
+                hintStyle: const TextStyle(color: Colors.white38),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(nameCtx);
+                _startQuickMatchmaking(context, _nameController.text);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFB800),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+              ),
+              child: const Text(
+                'شروع جستجوی حریف 🔍',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  void _startQuickMatchmaking(BuildContext context, String chosenName) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -21,21 +89,22 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
         String currentStatus = 'در حال اسکن بازیکنان آماده...';
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
-            // شروع جستجو
-            _onlineService.searchForOpponent(
+            _onlineService.findOrCreateMatch(
+              name: chosenName,
               onStatusUpdate: (status) {
                 setDialogState(() {
                   currentStatus = status;
                 });
               },
-              onMatchFound: (matchId, role) {
+              onMatchReady: (role, oppName) {
                 Navigator.pop(dialogCtx);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => OnlineTicTacToeScreen(
-                      matchId: matchId,
                       myRole: role,
+                      myPlayerName: chosenName.isEmpty ? 'من' : chosenName,
+                      opponentName: oppName,
                     ),
                   ),
                 );
@@ -74,7 +143,7 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () {
-                      _onlineService.cancelSearch();
+                      _onlineService.cancelMatchmaking();
                       Navigator.pop(dialogCtx);
                     },
                     child: const Text('انصراف', style: TextStyle(color: Colors.redAccent)),
@@ -193,13 +262,13 @@ class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
 
               const SizedBox(height: 14),
 
-              // گزینه ۳: آنلاین خودکار (فعال شده)
+              // گزینه ۳: آنلاین زنده
               _buildLobbyCard(
                 icon: Icons.wifi_rounded,
                 title: 'بازی آنلاین زنده (Matchmaking)',
-                subtitle: 'جستجوی خودکار حریف و چت حین بازی',
+                subtitle: 'جستجوی خودکار حریف، ثبت نام و چت متنی',
                 color: const Color(0xFFFFB800),
-                onTap: () => _startQuickMatchmaking(context),
+                onTap: () => _promptPlayerName(context),
               ),
 
               const Spacer(),
