@@ -1,8 +1,92 @@
 import 'package:flutter/material.dart';
 import 'tic_tac_toe_screen.dart';
+import 'online_tic_tac_toe_screen.dart';
+import '../services/online_game_service.dart';
 
-class TicTacToeLobbyScreen extends StatelessWidget {
+class TicTacToeLobbyScreen extends StatefulWidget {
   const TicTacToeLobbyScreen({super.key});
+
+  @override
+  State<TicTacToeLobbyScreen> createState() => _TicTacToeLobbyScreenState();
+}
+
+class _TicTacToeLobbyScreenState extends State<TicTacToeLobbyScreen> {
+  final OnlineGameService _onlineService = OnlineGameService();
+
+  void _startQuickMatchmaking(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        String currentStatus = 'در حال اسکن بازیکنان آماده...';
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            // شروع جستجو
+            _onlineService.searchForOpponent(
+              onStatusUpdate: (status) {
+                setDialogState(() {
+                  currentStatus = status;
+                });
+              },
+              onMatchFound: (matchId, role) {
+                Navigator.pop(dialogCtx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => OnlineTicTacToeScreen(
+                      matchId: matchId,
+                      myRole: role,
+                    ),
+                  ),
+                );
+              },
+            );
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF161926),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+                side: const BorderSide(color: Color(0xFFFFB800), width: 1.5),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  const SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 4,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'جستجوی حریف آنلاین',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    currentStatus,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      _onlineService.cancelSearch();
+                      Navigator.pop(dialogCtx);
+                    },
+                    child: const Text('انصراف', style: TextStyle(color: Colors.redAccent)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +112,6 @@ class TicTacToeLobbyScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              // بنر گرافیکی سربرگ بازی
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -56,30 +139,21 @@ class TicTacToeLobbyScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     const Text(
                       'قانون ۳ مهره بی‌پایان',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'هیچ بازی مساوی نمی‌شود! با قرار گرفتن مهره چهارم، اولین مهره حذف می‌شود.',
+                      'بازی بدون تساوی! قدیمی‌ترین مهره با کاشت مهره چهارم حذف می‌شود.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
               const Text(
                 'حالت بازی را انتخاب کنید:',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
               ),
               const SizedBox(height: 16),
 
@@ -99,7 +173,7 @@ class TicTacToeLobbyScreen extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // گزینه ۲: تک‌نفره با ربات
               _buildLobbyCard(
@@ -117,20 +191,18 @@ class TicTacToeLobbyScreen extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // گزینه ۳: آنلاین (آماده‌سازی برای فاز بعدی)
+              // گزینه ۳: آنلاین خودکار (فعال شده)
               _buildLobbyCard(
                 icon: Icons.wifi_rounded,
-                title: 'بازی آنلاین (اتاق اختصاصی)',
-                subtitle: 'به زودی: بازی با دوستان از راه دور',
+                title: 'بازی آنلاین زنده (Matchmaking)',
+                subtitle: 'جستجوی خودکار حریف و چت حین بازی',
                 color: const Color(0xFFFFB800),
-                isComingSoon: true,
-                onTap: () {},
+                onTap: () => _startQuickMatchmaking(context),
               ),
 
               const Spacer(),
-              // جایگاه رزرو بنر تپسل در آینده
               Container(
                 height: 55,
                 margin: const EdgeInsets.only(bottom: 12),
@@ -159,78 +231,45 @@ class TicTacToeLobbyScreen extends StatelessWidget {
     required String subtitle,
     required Color color,
     required VoidCallback onTap,
-    bool isComingSoon = false,
   }) {
     return InkWell(
-      onTap: isComingSoon ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: const Color(0xFF161926),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isComingSoon ? Colors.white10 : color.withOpacity(0.35),
-            width: 1.2,
-          ),
+          border: Border.all(color: color.withOpacity(0.35), width: 1.2),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isComingSoon ? Colors.white10 : color.withOpacity(0.15),
+                color: color.withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: isComingSoon ? Colors.white30 : color, size: 24),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: isComingSoon ? Colors.white38 : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      if (isComingSoon) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'به زودی',
-                            style: TextStyle(color: Colors.amber, fontSize: 10),
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    title,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: isComingSoon ? Colors.white24 : Colors.white54,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: isComingSoon ? Colors.white12 : Colors.white38,
-              size: 16,
-            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
           ],
         ),
       ),
