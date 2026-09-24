@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/tic_tac_toe_lobby_screen.dart';
 import 'screens/connect_four_lobby_screen.dart';
+import 'screens/dots_and_boxes_lobby_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,14 +88,13 @@ class MainMenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // ۱. بازی دوز بی‌نهایت
+              // ۱. دوز بی‌نهایت
               _buildGameCard(
                 title: 'دوز بی‌نهایت',
                 englishTitle: 'Infinite Tic-Tac-Toe',
                 description: 'هر بازیکن ۳ مهره؛ بازی بدون تساوی با استراتژی پیوسته!',
                 accentColor: const Color(0xFF00E5FF),
                 icon: Icons.grid_3x3_rounded,
-                isLocked: false,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -107,14 +107,13 @@ class MainMenuScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // ۲. بازی اتصال چهار (فعال شد)
+              // ۲. اتصال چهار
               _buildGameCard(
                 title: 'اتصال چهار (Connect 4)',
                 englishTitle: 'Connect 4 Strategy',
                 description: '۴ مهره هم‌رنگ را در یک خط افقی، عمودی یا مورب بچینید.',
                 accentColor: const Color(0xFFFF2A6D),
                 icon: Icons.blur_linear_rounded,
-                isLocked: false,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -127,20 +126,26 @@ class MainMenuScreen extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // ۳. بازی نقطه‌خط (برای فاز بعد)
+              // ۳. نقطه‌خط بزرگ
               _buildGameCard(
                 title: 'نقطه‌خط (Dots & Boxes)',
-                englishTitle: 'به زودی در آپدیت بعدی',
-                description: 'بستن اضلاع مربع و فتح بیشترین قلمرو.',
+                englishTitle: 'Dots & Territory Arena',
+                description: 'زمین بزرگ ۴۹ مربعی؛ خط بکشید و مربع‌ها را فتح کنید!',
                 accentColor: const Color(0xFFFFB800),
                 icon: Icons.border_all_rounded,
-                isLocked: true,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DotsAndBoxesLobbyScreen(),
+                    ),
+                  );
+                },
               ),
 
               const Spacer(),
 
-              // جایگاه قرارگیری بنر تپسل
+              // بنر استاندارد تپسل
               Container(
                 height: 55,
                 margin: const EdgeInsets.only(bottom: 12),
@@ -169,11 +174,10 @@ class MainMenuScreen extends StatelessWidget {
     required String description,
     required Color accentColor,
     required IconData icon,
-    required bool isLocked,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: isLocked ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: Container(
         padding: const EdgeInsets.all(18),
@@ -181,18 +185,16 @@ class MainMenuScreen extends StatelessWidget {
           color: const Color(0xFF151824),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isLocked ? Colors.white.withOpacity(0.06) : accentColor.withOpacity(0.4),
-            width: isLocked ? 1 : 1.5,
+            color: accentColor.withOpacity(0.4),
+            width: 1.5,
           ),
-          boxShadow: isLocked
-              ? []
-              : [
-                  BoxShadow(
-                    color: accentColor.withOpacity(0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  )
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withOpacity(0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            )
+          ],
         ),
         child: Row(
           children: [
@@ -200,45 +202,29 @@ class MainMenuScreen extends StatelessWidget {
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                color: isLocked ? Colors.white10 : accentColor.withOpacity(0.15),
+                color: accentColor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                icon,
-                color: isLocked ? Colors.white30 : accentColor,
-                size: 32,
-              ),
+              child: Icon(icon, color: accentColor, size: 32),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: isLocked ? Colors.white54 : Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (isLocked) ...[
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.lock_outline_rounded,
-                          color: Colors.white38,
-                          size: 16,
-                        ),
-                      ],
-                    ],
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     englishTitle,
                     style: TextStyle(
-                      color: isLocked ? Colors.white30 : accentColor.withOpacity(0.85),
+                      color: accentColor.withOpacity(0.85),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -254,9 +240,9 @@ class MainMenuScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(
+            const Icon(
               Icons.chevron_left_rounded,
-              color: isLocked ? Colors.white24 : Colors.white70,
+              color: Colors.white70,
               size: 24,
             ),
           ],
