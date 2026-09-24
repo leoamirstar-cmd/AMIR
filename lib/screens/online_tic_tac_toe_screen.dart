@@ -13,12 +13,14 @@ class ChatMessage {
 }
 
 class OnlineTicTacToeScreen extends StatefulWidget {
+  final String roomId;
   final String myRole; // 'X' or 'O'
   final String myPlayerName;
   final String opponentName;
 
   const OnlineTicTacToeScreen({
     super.key,
+    required this.roomId,
     required this.myRole,
     required this.myPlayerName,
     required this.opponentName,
@@ -31,6 +33,7 @@ class OnlineTicTacToeScreen extends StatefulWidget {
 class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     with SingleTickerProviderStateMixin {
   final InfiniteTicTacToeGame game = InfiniteTicTacToeGame();
+  final OnlineGameService _onlineService = OnlineGameService();
   late AnimationController _pulseController;
   final TextEditingController _chatInputController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
@@ -61,6 +64,40 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     )..repeat(reverse: true);
 
     _startTurnTimer();
+    _initNetworkSync();
+  }
+
+  /// اتصال به هماهنگ‌ساز ریل‌تایم بازی
+  void _initNetworkSync() {
+    _onlineService.listenToGameSync(
+      roomId: widget.roomId,
+      onOpponentMoved: (index, turn) {
+        if (!mounted || isMyTurn) return;
+        HapticFeedback.lightImpact();
+        setState(() {
+          game.makeMove(index);
+        });
+        if (game.isGameOver) {
+          _turnTimer?.cancel();
+          _handleRoundEnd();
+        } else {
+          _startTurnTimer();
+        }
+      },
+      onChatReceived: (message) {
+        if (!mounted) return;
+        if (!message.startsWith('${widget.myPlayerName}:')) {
+          setState(() {
+            _messages.add(ChatMessage(text: message, isMe: false, time: DateTime.now()));
+            recentFloatingMessage = message;
+          });
+          _floatingMessageTimer?.cancel();
+          _floatingMessageTimer = Timer(const Duration(seconds: 4), () {
+            if (mounted) setState(() => recentFloatingMessage = null);
+          });
+        }
+      },
+    );
   }
 
   @override
@@ -70,6 +107,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     _pulseController.dispose();
     _chatInputController.dispose();
     _chatScrollController.dispose();
+    _onlineService.cancelMatchmaking();
     super.dispose();
   }
 
@@ -110,6 +148,10 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
       game.makeMove(index);
     });
 
+    // ارسال حرکت به سرور تا در گوشی حریف اعمال شود
+    final nextRole = (widget.myRole == 'X') ? 'O' : 'X';
+    _onlineService.pushMyMove(widget.roomId, index, nextRole);
+
     if (game.isGameOver) {
       _turnTimer?.cancel();
       _handleRoundEnd();
@@ -144,16 +186,19 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
   void _sendTextMessage(String text) {
     if (text.trim().isEmpty) return;
 
+    final msgText = text.trim();
     final newMsg = ChatMessage(
-      text: text.trim(),
+      text: msgText,
       isMe: true,
       time: DateTime.now(),
     );
 
     setState(() {
       _messages.add(newMsg);
-      recentFloatingMessage = '${widget.myPlayerName}: ${newMsg.text}';
+      recentFloatingMessage = '${widget.myPlayerName}: $msgText';
     });
+
+    _onlineService.pushChatMessage(widget.roomId, msgText);
 
     _chatInputController.clear();
     _autoScrollChat();
@@ -222,7 +267,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
                       child: _messages.isEmpty
                           ? const Center(
                               child: Text(
-                                'هنوز پیامی رد و بدل نشده است.\nیک پیام بفرستید!',
+                                'هنوز پیامی ارسال نشده است.\nیک پیام برای حریف بنویسید!',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: Colors.white38, fontSize: 13),
                               ),
@@ -364,7 +409,7 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'مسابقه آنلاین (نقش شما: ${widget.myRole})',
+          'مسابقه آنلاین (شما: ${widget.myRole})',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         centerTitle: true,
@@ -425,7 +470,6 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
     );
   }
 
-  /// نوار امتیاز با نام واقعی دو بازیکن و رنگ آن‌ها
   Widget _buildScoreBoard() {
     final bool isMeX = widget.myRole == 'X';
     final String xName = isMeX ? '${widget.myPlayerName} (شما)' : widget.opponentName;
@@ -443,10 +487,8 @@ class _OnlineTicTacToeScreenState extends State<OnlineTicTacToeScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // مشخصات بازیکن X (آبی)
             _buildPlayerScore(xName, 'X', xWins, const Color(0xFF00E5FF), game.currentTurn == Player.X),
             Container(width: 1, height: 44, color: Colors.white10),
-            // مشخصات بازیکن O (قرمز)
             _buildPlayerScore(oName, 'O', oWins, const Color(0xFFFF2A6D), game.currentTurn == Player.O),
           ],
         ),
