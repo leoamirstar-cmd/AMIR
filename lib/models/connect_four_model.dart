@@ -4,12 +4,11 @@ class ConnectFourGame {
   static const int rows = 6;
   static const int cols = 7;
 
-  // ماتریس ۶ در ۷: سطر ۰ بالا و سطر ۵ پایین
   late List<List<Disc?>> board;
 
   Disc currentTurn = Disc.Red;
   Disc? winner;
-  List<List<int>>? winningCells; // مختصات ۴ دیسک برنده [ [row, col], ... ]
+  List<List<int>>? winningCells;
   bool isDraw = false;
   bool isGameOver = false;
 
@@ -26,35 +25,31 @@ class ConnectFourGame {
     isGameOver = false;
   }
 
-  /// انداختن دیسک در یک ستون (جاذبه: به پایین‌ترین خانه خالی می‌افتد)
+  /// انداختن مهره در ستون (جاذبه)
   int dropDisc(int col) {
     if (isGameOver || col < 0 || col >= cols) return -1;
 
-    // پیدا کردن عمیق‌ترین سطر خالی در این ستون
     for (int r = rows - 1; r >= 0; r--) {
       if (board[r][col] == null) {
         board[r][col] = currentTurn;
 
-        // بررسی برنده شدن ۴ تایی
         if (_checkWin(r, col, currentTurn)) {
           winner = currentTurn;
           isGameOver = true;
           return r;
         }
 
-        // بررسی پر شدن کل تخته و مساوی
         if (_checkDraw()) {
           isDraw = true;
           isGameOver = true;
           return r;
         }
 
-        // تغییر نوبت
         currentTurn = currentTurn == Disc.Red ? Disc.Yellow : Disc.Red;
         return r;
       }
     }
-    return -1; // ستون پر است
+    return -1;
   }
 
   bool _checkDraw() {
@@ -65,7 +60,6 @@ class ConnectFourGame {
   }
 
   bool _checkWin(int r, int c, Disc disc) {
-    // ۴ راستا برای بررسی: افقی، عمودی، مورب مثبت، مورب منفی
     final directions = [
       [0, 1],  // افقی
       [1, 0],  // عمودی
@@ -78,7 +72,6 @@ class ConnectFourGame {
       int dc = dir[1];
       List<List<int>> matched = [[r, c]];
 
-      // حرکت در جهت جلو
       int step = 1;
       while (true) {
         int nr = r + dr * step;
@@ -91,7 +84,6 @@ class ConnectFourGame {
         }
       }
 
-      // حرکت در جهت معکوس
       step = 1;
       while (true) {
         int nr = r - dr * step;
@@ -112,7 +104,10 @@ class ConnectFourGame {
     return false;
   }
 
-  /// هوش مصنوعی ربات برای انتخاب بهترین ستون
+  // ==========================================
+  // هوش مصنوعی پیشرفته (الگوریتم Minimax و ارزیابی استراتژیک)
+  // ==========================================
+
   int getBestBotMove() {
     List<int> validCols = [];
     for (int c = 0; c < cols; c++) {
@@ -120,36 +115,137 @@ class ConnectFourGame {
     }
     if (validCols.isEmpty) return -1;
 
-    // ۱. اگر ربات می‌تواند با این حرکت ۴ تایی کند و ببرد
+    // ۱. حرکت پیروزی‌بخش آنی ربات (۴تایی فوری)
     for (int c in validCols) {
-      if (_simulateMove(c, Disc.Yellow)) return c;
+      if (_simulateWinMove(c, Disc.Yellow)) return c;
     }
 
-    // ۲. اگر بازیکن قرمز در آستانه ۴ تایی شدن است، حتماً بلاکش کند!
+    // ۲. دفاع فوری در برابر ۴تایی شدن حریف (بلاک فوری)
     for (int c in validCols) {
-      if (_simulateMove(c, Disc.Red)) return c;
+      if (_simulateWinMove(c, Disc.Red)) return c;
     }
 
-    // ۳. اولویت ستون‌های مرکزی (ستون ۳ و بعد ۲ و ۴ قدرت استراتژیک دارند)
-    final priorityOrder = [3, 2, 4, 1, 5, 0, 6];
-    for (int c in priorityOrder) {
-      if (validCols.contains(c)) return c;
-    }
-
-    validCols.shuffle();
-    return validCols.first;
-  }
-
-  bool _simulateMove(int col, Disc disc) {
-    for (int r = rows - 1; r >= 0; r--) {
-      if (board[r][col] == null) {
-        board[r][col] = disc;
-        bool win = _checkWin(r, col, disc);
-        board[r][col] = null; // برگرداندن به حالت اول
+    // ۳. فیلتر کردن ستون‌های تله‌دار:
+    // (حرکاتی که اگر ربات بزند، خانه بالایش باعث برد حریف در دور بعد می‌شود)
+    List<int> safeCols = [];
+    for (int c in validCols) {
+      int r = _getLowestEmptyRow(c);
+      if (r > 0) {
+        // آیا اگر ما در r مهره بگذاریم، حریف با گذاشتن در r-1 می‌برد؟
+        board[r][c] = Disc.Yellow;
+        bool givesOpponentWin = _checkWin(r - 1, c, Disc.Red);
+        board[r][c] = null;
         winningCells = null;
-        return win;
+
+        if (!givesOpponentWin) {
+          safeCols.add(c);
+        }
+      } else {
+        safeCols.add(c); // بالاترین سطر است
       }
     }
-    return false;
+
+    // اگر ستون امن وجود داشت، فقط از بین امن‌ها انتخاب کند
+    List<int> candidates = safeCols.isNotEmpty ? safeCols : validCols;
+
+    // ۴. امتیازدهی پیشرفته به موقعیت‌ها (Heuristic Evaluation)
+    int bestScore = -999999;
+    int bestCol = candidates.first;
+
+    for (int c in candidates) {
+      int r = _getLowestEmptyRow(c);
+      board[r][c] = Disc.Yellow;
+      int score = _evaluateBoard();
+      board[r][c] = null;
+      winningCells = null;
+
+      // امتیاز ویژه کنترل مرکز
+      if (c == 3) score += 40;
+      if (c == 2 || c == 4) score += 20;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCol = c;
+      }
+    }
+
+    return bestCol;
+  }
+
+  int _getLowestEmptyRow(int col) {
+    for (int r = rows - 1; r >= 0; r--) {
+      if (board[r][col] == null) return r;
+    }
+    return -1;
+  }
+
+  bool _simulateWinMove(int col, Disc disc) {
+    int r = _getLowestEmptyRow(col);
+    if (r == -1) return false;
+
+    board[r][col] = disc;
+    bool win = _checkWin(r, col, disc);
+    board[r][col] = null;
+    winningCells = null;
+    return win;
+  }
+
+  /// امتیازدهی به تمام پنجره‌های ۴تایی افقی، عمودی و مورب
+  int _evaluateBoard() {
+    int score = 0;
+
+    // افقی
+    for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < cols - 3; c++) {
+        score += _evaluateWindow([board[r][c], board[r][c + 1], board[r][c + 2], board[r][c + 3]]);
+      }
+    }
+
+    // عمودی
+    for (int c = 0; c < cols; c++) {
+      for (int r = 0; r < rows - 3; r++) {
+        score += _evaluateWindow([board[r][c], board[r + 1][c], board[r + 2][c], board[r + 3][c]]);
+      }
+    }
+
+    // مورب مثبت (پایین به بالا)
+    for (int r = 3; r < rows; r++) {
+      for (int c = 0; c < cols - 3; c++) {
+        score += _evaluateWindow([board[r][c], board[r - 1][c + 1], board[r - 2][c + 2], board[r - 3][c + 3]]);
+      }
+    }
+
+    // مورب منفی (بالا به پایین)
+    for (int r = 0; r < rows - 3; r++) {
+      for (int c = 0; c < cols - 3; c++) {
+        score += _evaluateWindow([board[r][c], board[r + 1][c + 1], board[r + 2][c + 2], board[r + 3][c + 3]]);
+      }
+    }
+
+    return score;
+  }
+
+  int _evaluateWindow(List<Disc?> window) {
+    int botCount = window.where((d) => d == Disc.Yellow).length;
+    int humanCount = window.where((d) => d == Disc.Red).length;
+    int emptyCount = window.where((d) => d == null).length;
+
+    int score = 0;
+
+    if (botCount == 4) {
+      score += 10000;
+    } else if (botCount == 3 && emptyCount == 1) {
+      score += 120; // شانس عالی برای برد ربات
+    } else if (botCount == 2 && emptyCount == 2) {
+      score += 15;
+    }
+
+    if (humanCount == 3 && emptyCount == 1) {
+      score -= 250; // خطر جدی باخت ربات؛ حتماً بلاک کند
+    } else if (humanCount == 2 && emptyCount == 2) {
+      score -= 25;
+    }
+
+    return score;
   }
 }
